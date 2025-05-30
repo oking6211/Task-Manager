@@ -1,32 +1,53 @@
-# Prerequisites
-*.d
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# Mono Auto Generated Files
+mono_crash.*
 
-# Precompiled Headers
-*.gch
-*.pch
+# Build results
+x64/
+x86/
+ARM/
+ARM64/
+bld/
+[Bb]in/
+[Oo]bj/
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Visual Studio 2022 cache and temporary files
+.vs/
+.vscode/
+.vscode/**
 
-# Fortran module files
-*.mod
-*.smod
+# Visual Studio database files
+*.VC.db
+*.VC.opendb
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# CMake generated files (if using CMake)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CMakeLists.txt.user
+CMakeScripts/
+Testing/
+CTestTestfile.cmake
+Testing/Temporary/
 
-# Executables
+# Build configuration folders
+/[Dd]ebug/
+/[Rr]elease/
+/[Rr]eleases/
+/[Dd]ebugPublic/
+
+# Project and solution files
+*.VC.db
+*.VC.opendb
+*.ipch
+
+# Add any specific files or folders still being tracked here
 *.exe
-*.out
-*.app
+*.vcxproj
