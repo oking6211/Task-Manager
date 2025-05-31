@@ -244,3 +244,37 @@ void ProcessManager::printGroupedProcessesByName() const
             << formatMemory(entry.second.totalMemory) << L"\n";
     }
 }
+
+std::vector<ProcessInfo> ProcessManager::getProcessesByName(const std::wstring& name) const
+{
+    std::wstring lowerName = name;
+    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), towlower);
+
+    std::vector<ProcessInfo> result;
+    for (const auto& proc : processList)
+    {
+        std::wstring cleanProcName = cleanName(proc.name);
+        std::wstring lowerProcName = cleanProcName;
+        std::transform(lowerProcName.begin(), lowerProcName.end(), lowerProcName.begin(), towlower);
+
+        if (lowerProcName == lowerName)
+        {
+            result.push_back(proc);
+        }
+    }
+    return result;
+}
+
+bool ProcessManager::terminateProcessByPID(DWORD pid)
+{
+    // Open process with terminate rights
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (hProcess == NULL)
+        return false;
+
+    // Attempt to terminate process
+    bool success = TerminateProcess(hProcess, 0) != 0;
+
+    CloseHandle(hProcess);
+    return success;
+}

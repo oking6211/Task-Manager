@@ -77,6 +77,12 @@ public:
     // Groups by process name and prints total memory for each group (sorted by name)
     void printGroupedProcessesByName() const;
 
+    // Return all processes matching name (case-insensitive, cleaned)
+    std::vector<ProcessInfo> getProcessesByName(const std::wstring& name) const;
+
+    //Terminates a procsses by id
+    bool terminateProcessByPID(DWORD pid);
+
 private:
     // Stores all the processes currently retrieved from the system
     std::vector<ProcessInfo> processList;
