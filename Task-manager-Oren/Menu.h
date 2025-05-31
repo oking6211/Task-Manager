@@ -2,6 +2,9 @@
 
 #include "ProcessManager.h"
 #include "ProcessLauncher.h"
+#include <chrono>
+#include <thread>
+#include <conio.h> 
 // Class to handle the user interface menu
 class Menu
 {
@@ -21,6 +24,12 @@ private:
 
     //Dunction for terminating processes
     void terminateProcessByName();
+
+    //function for live monitoring
+    void liveMonitor();
+
+    void printGroupedProcessesLive(const std::vector<ProcessInfo>& processList,
+        std::map<std::wstring, size_t>& previousMemory);
 
     //Reference to ProcessLauncher instance for launching a new process
     ProcessLauncher processLauncher;

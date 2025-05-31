@@ -86,6 +86,9 @@ public:
     //Terminates all procsses by name
     bool terminateProcessesByName(const std::wstring& targetName);
 
+    // Removes the ".exe" extension from process names
+    std::wstring cleanName(const std::wstring& name) const;
+
 private:
     // Stores all the processes currently retrieved from the system
     std::vector<ProcessInfo> processList;
@@ -93,6 +96,5 @@ private:
     // Finds the longest process name (used for formatting)
     size_t getLongestNameLength() const;
 
-    // Removes the ".exe" extension from process names
-    std::wstring cleanName(const std::wstring& name) const;
+    
 };
