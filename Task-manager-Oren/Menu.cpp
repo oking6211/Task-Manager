@@ -25,11 +25,11 @@ void Menu::runMenu()
         {
         case 1:
             processManager.sortByName();
-            processManager.printProcessList();
+            processManager.printGroupedProcessesByName();
             break;
         case 2:
             processManager.sortByMemory();
-            processManager.printProcessList();
+            processManager.printGroupedProcessesByMemory();
             break;
         case 0:
             std::cout << "Goodbye!\n";

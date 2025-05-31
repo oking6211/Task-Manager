@@ -1,161 +1,183 @@
 #include "ProcessManager.h"
 
-
-bool ProcessManager::refreshProcessList() 
-{
+bool ProcessManager::refreshProcessList() {
     processList.clear();
 
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) 
-    {
-        std::wcerr << L"Failed to take process snapshot.\n";
+    if (snapshot == INVALID_HANDLE_VALUE)
         return false;
-    }
 
-    PROCESSENTRY32 pe;
-    pe.dwSize = sizeof(PROCESSENTRY32);
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(PROCESSENTRY32W);
 
-    if (!Process32First(snapshot, &pe)) 
-    {
+    if (!Process32FirstW(snapshot, &entry)) {
         CloseHandle(snapshot);
-        std::wcerr << L"Failed to get first process.\n";
         return false;
     }
 
     do {
-        ProcessInfo pi;
-        pi.pid = pe.th32ProcessID;
-        pi.name = pe.szExeFile;
-        pi.memoryUsage = 0;
-        pi.isAccessible = false;
+        ProcessInfo pinfo;
+        pinfo.pid = entry.th32ProcessID;
+        pinfo.name = entry.szExeFile;
+        pinfo.isAccessible = true;
+        pinfo.memoryUsage = 0;
 
-        HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pi.pid);
-        if (!hProc) 
-        {
-            hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pi.pid);
-        }
-
-        if (hProc)
-        {
+        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pinfo.pid);
+        if (hProcess) {
             PROCESS_MEMORY_COUNTERS pmc;
-            if (GetProcessMemoryInfo(hProc, &pmc, sizeof(pmc))) 
-            {
-                pi.memoryUsage = pmc.WorkingSetSize;
-                pi.isAccessible = true;
+            if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc))) {
+                pinfo.memoryUsage = pmc.WorkingSetSize;
             }
-            CloseHandle(hProc);
+            CloseHandle(hProcess);
+        }
+        else {
+            pinfo.isAccessible = false;
         }
 
-        processList.push_back(pi);
-
-    } while (Process32Next(snapshot, &pe));
+        processList.push_back(pinfo);
+    } while (Process32NextW(snapshot, &entry));
 
     CloseHandle(snapshot);
     return true;
 }
 
-const std::vector<ProcessInfo>& ProcessManager::getProcessList() const 
-{
+const std::vector<ProcessInfo>& ProcessManager::getProcessList() const {
     return processList;
 }
 
-void ProcessManager::printProcessList() const 
-{
-    const int widthPID = 8;
-    const int widthMemory = 15;
+void ProcessManager::sortByName() {
+    std::sort(processList.begin(), processList.end(), [](const ProcessInfo& a, const ProcessInfo& b) {
+        if (!a.isAccessible && b.isAccessible) return false;
+        if (a.isAccessible && !b.isAccessible) return true;
+        return a.name < b.name;
+        });
+}
 
-    size_t widthName = getLongestNameLength() + 2;  
+void ProcessManager::sortByMemory() {
+    std::sort(processList.begin(), processList.end(), [](const ProcessInfo& a, const ProcessInfo& b) {
+        if (!a.isAccessible && b.isAccessible) return false;
+        if (a.isAccessible && !b.isAccessible) return true;
+        return a.memoryUsage > b.memoryUsage;
+        });
+}
 
+std::wstring ProcessManager::cleanName(const std::wstring& name) const {
+    size_t pos = name.find(L".exe");
+    if (pos != std::wstring::npos) {
+        return name.substr(0, pos);
+    }
+    return name;
+}
 
-    std::wcout << std::left
-        << std::setw(widthPID) << L"PID"
-        << std::setw(widthName) << L"Name"
-        << std::setw(widthMemory) << L"Memory Usage"
+size_t ProcessManager::getLongestNameLength() const {
+    size_t maxLength = 0;
+    for (const auto& proc : processList) {
+        if (proc.isAccessible) {
+            size_t len = cleanName(proc.name).length();
+            if (len > maxLength)
+                maxLength = len;
+        }
+    }
+    return maxLength;
+}
+
+void ProcessManager::printProcessList() const {
+    size_t nameWidth = getLongestNameLength() + 5;
+
+    std::wcout << std::left << std::setw(10) << L"PID"
+        << std::setw(nameWidth) << L"Name"
+        << std::setw(15) << L"Memory"
         << L"\n";
 
-    std::wcout << std::wstring(widthPID + widthName + widthMemory, L'=') << L"\n";
+    std::wcout << std::wstring(10 + nameWidth + 15, L'-') << L"\n";
 
-    for (const auto& p : processList) 
-    {
-        std::wcout << std::left
-            << std::setw(widthPID) << p.pid
-            << std::setw(widthName) << p.name;
+    for (const auto& proc : processList) {
+        std::wcout << std::left << std::setw(10) << proc.pid
+            << std::setw(nameWidth) << cleanName(proc.name).c_str();
 
-        if (p.isAccessible) {
-            double mem = static_cast<double>(p.memoryUsage);
-            std::wstring unit = L"Bytes";
-
-            if (mem > 1024) {
-                mem /= 1024;
-                unit = L"KB";
-            }
-            if (mem > 1024) {
-                mem /= 1024;
-                unit = L"MB";
-            }
-            if (mem > 1024) {
-                mem /= 1024;
-                unit = L"GB";
-            }
-
-            std::wcout << std::fixed << std::setprecision(2)
-                << std::setw(widthMemory - 3) << mem << L" " << unit;
+        if (proc.isAccessible) {
+            std::wcout << std::setw(15) << formatMemory(proc.memoryUsage).c_str();
         }
         else {
-            std::wcout << std::setw(widthMemory) << L"Access Denied";
+            std::wcout << std::setw(15) << L"Access Denied";
         }
 
         std::wcout << L"\n";
     }
 }
 
+void ProcessManager::printGroupedProcessesByMemory() const {
+    std::map<std::wstring, ProcessGroup> grouped;
+    for (const auto& p : processList) {
+        if (p.isAccessible) {
+            std::wstring name = cleanName(p.name);
+            grouped[name].count++;
+            grouped[name].totalMemory += static_cast<unsigned long long>(p.memoryUsage);
+        }
+    }
 
-void ProcessManager::sortByName() {
-    std::sort(processList.begin(), processList.end(),
-        [this](const ProcessInfo& a, const ProcessInfo& b) {
-            if (!a.isAccessible && b.isAccessible) return false;
-            if (a.isAccessible && !b.isAccessible) return true;
-            if (!a.isAccessible && !b.isAccessible) return false;
+    
+    std::vector<std::pair<std::wstring, ProcessGroup>> vecGrouped(grouped.begin(), grouped.end());
 
-            return cleanName(a.name) < cleanName(b.name);
+    
+    std::sort(vecGrouped.begin(), vecGrouped.end(),
+        [](const auto& a, const auto& b) {
+            return a.second.totalMemory > b.second.totalMemory;
         });
-}
 
-
-void ProcessManager::sortByMemory()
-{
-    std::sort(processList.begin(), processList.end(), [](const ProcessInfo& a, const ProcessInfo& b)
-        {
-        return a.memoryUsage > b.memoryUsage; 
-        });
-}
-
-size_t ProcessManager::getLongestNameLength() const
-{
-    size_t maxLen = 0;
-    for (const auto& p : processList) 
-    {
-        if (p.isAccessible)
-        {
-            if (p.name.length() > maxLen)
-            {
-                maxLen = p.name.length();
-            }
-        }  
+    
+    size_t maxNameLength = 0;
+    for (const auto& entry : vecGrouped) {
+        maxNameLength = std::max(maxNameLength, entry.first.length());
     }
-    return maxLen;
+
+    std::wcout << std::left
+        << std::setw(static_cast<int>(maxNameLength) + 4) << L"Process Name"
+        << std::setw(12) << L"Instances"
+        << L"Total Memory\n";
+
+    std::wcout << std::wstring(maxNameLength + 32, L'-') << L"\n";
+
+    for (const auto& entry : vecGrouped) {
+        std::wcout << std::left
+            << std::setw(static_cast<int>(maxNameLength) + 4) << entry.first
+            << std::setw(12) << entry.second.count
+            << formatMemory(entry.second.totalMemory) << L"\n";
+    }
 }
 
-std::wstring ProcessManager::cleanName(const std::wstring& name) 
-{
-    size_t start = 0;
-    while (start < name.size() && !std::iswalpha(name[start])) 
-    {
-        ++start;
+void ProcessManager::printGroupedProcessesByName() const {
+    std::map<std::wstring, ProcessGroup> grouped;
+
+    
+    for (const auto& p : processList) {
+        if (p.isAccessible) {
+            std::wstring name = cleanName(p.name);
+            grouped[name].count++;
+            grouped[name].totalMemory += p.memoryUsage;
+        }
     }
-    std::wstring cleaned = name.substr(start);
-    for (auto& ch : cleaned) {
-        ch = std::towlower(ch);
+
+    
+    size_t maxNameLength = 0;
+    for (const auto& entry : grouped) {
+        maxNameLength = std::max(maxNameLength, entry.first.length());
     }
-    return cleaned;
+
+    
+    std::wcout << std::left
+        << std::setw(static_cast<int>(maxNameLength) + 4) << L"Process Name"
+        << std::setw(12) << L"Instances"
+        << L"Total Memory\n";
+
+    std::wcout << std::wstring(maxNameLength + 32, L'-') << L"\n";
+
+    
+    for (const auto& entry : grouped) {
+        std::wcout << std::left
+            << std::setw(static_cast<int>(maxNameLength) + 4) << entry.first
+            << std::setw(12) << entry.second.count
+            << formatMemory(entry.second.totalMemory) << L"\n";
+    }
 }
+
