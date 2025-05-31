@@ -22,7 +22,7 @@ void Menu::runMenu()
     {
         printMenu();
         std::cin >> choice;
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Clear input buffer
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  
 
         switch (choice)
         {
@@ -35,10 +35,10 @@ void Menu::runMenu()
             processManager.printGroupedProcessesByMemory();
             break;
         case 3:
-            launchProcess(); 
+            launchProcess();
             break;
         case 4:
-            terminateProcessByName();
+            terminateProcessByName();  
             break;
         case 0:
             std::cout << "Goodbye!\n";
@@ -65,6 +65,7 @@ void Menu::launchProcess()
     if (processLauncher.launch(program))
     {
         std::wcout << L"Program launched successfully.\n";
+        processManager.refreshProcessList();
     }
     else
     {
@@ -74,37 +75,21 @@ void Menu::launchProcess()
 
 void Menu::terminateProcessByName()
 {
-    std::wcout << L"Enter process name to terminate (without .exe): ";
-    std::wstring procName;
-    std::getline(std::wcin, procName);
+    std::wcout << L"Enter the process name to terminate (without .exe): ";
+    std::wstring nameToKill;
+    std::getline(std::wcin, nameToKill);
 
-    auto procs = processManager.getProcessesByName(procName);
-
-    if (procs.empty()) {
-        std::wcout << L"No running processes found with that name.\n";
+    if (nameToKill.empty())
+    {
+        std::wcout << L"No name entered. Aborting.\n";
         return;
     }
 
-    std::wcout << L"Found " << procs.size() << L" process(es) with name \"" << procName << L"\":\n";
-
-    for (const auto& proc : procs) {
-        std::wcout << L"PID: " << proc.pid << L", Memory: " << formatMemory(proc.memoryUsage) << L"\n";
+    if (processManager.terminateProcessesByName(nameToKill)) 
+    {
+        std::wcout << L"All processes named \"" << nameToKill << L"\" terminated successfully.\n";
     }
-
-    std::wcout << L"Enter PID to terminate or 0 to cancel: ";
-    DWORD pid;
-    std::wcin >> pid;
-    std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
-
-    if (pid == 0) {
-        std::wcout << L"Termination cancelled.\n";
-        return;
+    else {
+        std::wcout << L"Some processes could not be terminated.\n";
     }
-
-    bool terminated = processManager.terminateProcessByPID(pid);
-
-    if (terminated)
-        std::wcout << L"Process terminated successfully.\n";
-    else
-        std::wcout << L"Failed to terminate the process.\n";
 }

@@ -83,6 +83,9 @@ public:
     //Terminates a procsses by id
     bool terminateProcessByPID(DWORD pid);
 
+    //Terminates all procsses by name
+    bool terminateProcessesByName(const std::wstring& targetName);
+
 private:
     // Stores all the processes currently retrieved from the system
     std::vector<ProcessInfo> processList;

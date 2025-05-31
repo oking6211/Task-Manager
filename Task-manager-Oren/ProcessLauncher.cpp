@@ -3,8 +3,18 @@
 
 bool ProcessLauncher::launch(const std::wstring& programPath)
 {
-    // Use ShellExecuteW to open the program
-    HINSTANCE result = ShellExecuteW(NULL, L"open", programPath.c_str(), NULL, NULL, SW_SHOW);
-    // If result > 32, launch succeeded
-    return (INT_PTR)result > 32;
+    STARTUPINFO si = { sizeof(STARTUPINFO) };
+    PROCESS_INFORMATION pi;
+
+    BOOL result = CreateProcessW(
+        nullptr,
+        const_cast<wchar_t*>(programPath.c_str()),
+        nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi);
+
+    if (result) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return true;
+    }
+    return false;
 }

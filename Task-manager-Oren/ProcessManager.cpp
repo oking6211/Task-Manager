@@ -278,3 +278,48 @@ bool ProcessManager::terminateProcessByPID(DWORD pid)
     CloseHandle(hProcess);
     return success;
 }
+
+bool ProcessManager::terminateProcessesByName(const std::wstring& name)
+{
+    bool allTerminated = true;
+
+    std::wstring target = cleanName(name);
+    std::transform(target.begin(), target.end(), target.begin(), ::towlower);
+
+    for (const auto& proc : processList)
+    {
+        std::wstring procName = cleanName(proc.name);
+        std::transform(procName.begin(), procName.end(), procName.begin(), ::towlower);
+
+        if (procName == target)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, proc.pid);
+            if (hProcess)
+            {
+                if (!TerminateProcess(hProcess, 0))
+                {
+                    DWORD err = GetLastError();
+                    if (err != 5) 
+                    { 
+                        std::wcerr << L"Failed to terminate process PID: " << proc.pid
+                            << L" (Error code: " << err << L")\n";
+                    }
+                    allTerminated = false;
+                }
+                CloseHandle(hProcess);
+            }
+            else
+            {
+                DWORD err = GetLastError();
+                if (err != 5) {
+                    std::wcerr << L"Failed to open process PID: " << proc.pid
+                        << L" (Error code: " << err << L")\n";
+                }
+                allTerminated = false;
+            }
+
+        }
+    }
+
+    return allTerminated;
+}
