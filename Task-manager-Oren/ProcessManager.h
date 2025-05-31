@@ -89,6 +89,8 @@ public:
     // Removes the ".exe" extension from process names
     std::wstring cleanName(const std::wstring& name) const;
 
+    //Function to print the procsses list, overload
+    void printProcessList(const std::vector<ProcessInfo>& list) const;
 private:
     // Stores all the processes currently retrieved from the system
     std::vector<ProcessInfo> processList;

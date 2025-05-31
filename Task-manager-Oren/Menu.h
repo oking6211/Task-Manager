@@ -28,8 +28,12 @@ private:
     //function for live monitoring
     void liveMonitor();
 
+    //function for printing procsses in an orgenized manner
     void printGroupedProcessesLive(const std::vector<ProcessInfo>& processList,
         std::map<std::wstring, size_t>& previousMemory);
+
+    //function to serch for procsses by name
+    void searchProcessesByName();
 
     //Reference to ProcessLauncher instance for launching a new process
     ProcessLauncher processLauncher;

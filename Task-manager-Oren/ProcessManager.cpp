@@ -103,6 +103,31 @@ std::wstring ProcessManager::cleanName(const std::wstring& name) const
     return name;
 }
 
+void ProcessManager::printProcessList(const std::vector<ProcessInfo>& list) const
+{
+    size_t nameWidth = getLongestNameLength() + 5;
+
+    std::wcout << std::left << std::setw(10) << L"PID"
+        << std::setw(nameWidth) << L"Name"
+        << std::setw(15) << L"Memory"
+        << L"\n";
+
+    std::wcout << std::wstring(10 + nameWidth + 15, L'-') << L"\n";
+
+    for (const auto& proc : list)
+    {
+        std::wcout << std::left << std::setw(10) << proc.pid
+            << std::setw(nameWidth) << cleanName(proc.name).c_str();
+
+        if (proc.isAccessible)
+            std::wcout << std::setw(15) << formatMemory(proc.memoryUsage).c_str();
+        else
+            std::wcout << std::setw(15) << L"Access Denied";
+
+        std::wcout << L"\n";
+    }
+}
+
 // Calculate longest process name length (for formatting output)
 size_t ProcessManager::getLongestNameLength() const
 {
@@ -279,45 +304,48 @@ bool ProcessManager::terminateProcessByPID(DWORD pid)
     return success;
 }
 
-bool ProcessManager::terminateProcessesByName(const std::wstring& name)
+bool ProcessManager::terminateProcessesByName(const std::wstring& targetName)
 {
     bool allTerminated = true;
 
-    std::wstring target = cleanName(name);
-    std::transform(target.begin(), target.end(), target.begin(), ::towlower);
+    // Normalize the target name: lowercase and strip .exe
+    std::wstring normalizedTarget = targetName;
+    std::transform(normalizedTarget.begin(), normalizedTarget.end(), normalizedTarget.begin(), ::towlower);
+
+    // Refresh process list before attempting termination
+    refreshProcessList();
 
     for (const auto& proc : processList)
     {
-        std::wstring procName = cleanName(proc.name);
+        if (!proc.isAccessible)
+            continue;
+
+        std::wstring procName = cleanName(proc.name);  // Remove .exe and lowercase
         std::transform(procName.begin(), procName.end(), procName.begin(), ::towlower);
 
-        if (procName == target)
+        if (procName == normalizedTarget)
         {
             HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, proc.pid);
             if (hProcess)
             {
                 if (!TerminateProcess(hProcess, 0))
                 {
-                    DWORD err = GetLastError();
-                    if (err != 5) 
-                    { 
-                        std::wcerr << L"Failed to terminate process PID: " << proc.pid
-                            << L" (Error code: " << err << L")\n";
-                    }
+                    std::wcout << L"Failed to terminate process PID: " << proc.pid
+                        << L" (Error code: " << GetLastError() << L")\n";
                     allTerminated = false;
+                }
+                else
+                {
+                    std::wcout << L"Terminated process PID: " << proc.pid << L"\n";
                 }
                 CloseHandle(hProcess);
             }
             else
             {
-                DWORD err = GetLastError();
-                if (err != 5) {
-                    std::wcerr << L"Failed to open process PID: " << proc.pid
-                        << L" (Error code: " << err << L")\n";
-                }
+                std::wcout << L"Cannot open process PID: " << proc.pid
+                    << L" (Error code: " << GetLastError() << L")\n";
                 allTerminated = false;
             }
-
         }
     }
 

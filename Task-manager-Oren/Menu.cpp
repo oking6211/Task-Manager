@@ -6,12 +6,14 @@ Menu::Menu(ProcessManager& pm) : processManager(pm) {}
 
 void Menu::printMenu()
 {
+    //Main options
     std::cout << "Choose an option:\n";
     std::cout << "1. Sort by Name (Alphabetical)\n";
     std::cout << "2. Sort by Memory Size\n";
     std::cout << "3. Launch a new program\n";    
-    std::cout << "4. Terminate a process by Name\n";
-    std::cout << "5. Live Monitoring\n";
+    std::cout << "4. Search Processes by Name\n";
+    std::cout << "5. Terminate a process by Name\n";
+    std::cout << "6. Live Monitoring\n";
     std::cout << "0. Exit\n";
     std::cout << "Enter choice: ";
 }
@@ -39,9 +41,12 @@ void Menu::runMenu()
             launchProcess();
             break;
         case 4:
-            terminateProcessByName();  
+            searchProcessesByName();
             break;
         case 5:
+            terminateProcessByName();  
+            break;
+        case 6:
             liveMonitor();
         case 0:
             std::cout << "Goodbye!\n";
@@ -92,7 +97,8 @@ void Menu::terminateProcessByName()
     {
         std::wcout << L"All processes named \"" << nameToKill << L"\" terminated successfully.\n";
     }
-    else {
+    else 
+    {
         std::wcout << L"Some processes could not be terminated.\n";
     }
 }
@@ -108,15 +114,14 @@ void Menu::liveMonitor()
         processManager.refreshProcessList();
         const std::vector<ProcessInfo>& list = processManager.getProcessList();
 
-        printGroupedProcessesLive(list, previousMemory);
+        printGroupedProcessesLive(list, previousMemory);// auto changes the previousMemory into current memory when finished
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
+
     }
 }
 
-void Menu::printGroupedProcessesLive(
-    const std::vector<ProcessInfo>& processList,
-    std::map<std::wstring, size_t>& previousMemory)
+void Menu::printGroupedProcessesLive(const std::vector<ProcessInfo>& processList, std::map<std::wstring, size_t>& previousMemory)
 {
     std::map<std::wstring, ProcessGroup> currentGroups;
 
@@ -179,6 +184,45 @@ void Menu::printGroupedProcessesLive(
             << std::setw(15) << formatMemory(currMem)
             << deltaStr << L"\n";
     }
+}
+
+void Menu::searchProcessesByName()
+{
+    std::wstring searchTerm;
+    std::wcout << L"Enter the program name or full path to launch (e.g. notepad.exe): ";
+    std::getline(std::wcin, searchTerm);
+
+    if (searchTerm.empty()) 
+    {
+        std::wcout << L"No search term entered.\n";
+        return;
+    }
+
+    const auto& list = processManager.getProcessList();
+    std::vector<ProcessInfo> matches;
+
+    for (const auto& proc : list) 
+    {
+        std::wstring clean = processManager.cleanName(proc.name);
+        std::wstring lowerName = clean;
+        std::wstring lowerSearch = searchTerm;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::towlower);
+        std::transform(lowerSearch.begin(), lowerSearch.end(), lowerSearch.begin(), ::towlower);
+
+        if (lowerName.find(lowerSearch) != std::wstring::npos)
+        {
+            matches.push_back(proc);
+        }
+    }
+
+    if (matches.empty()) 
+    {
+        std::wcout << L"No matching processes found.\n";
+        return;
+    }
+
+    std::wcout << L"\nMatching Processes:\n";
+    processManager.printProcessList(matches); 
 }
 
 
